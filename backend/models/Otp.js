@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const { Schema , model } = mongoose;
 
 const OtpSchema = new Schema({
+
     email: {
         type: String,
         required: true,
@@ -16,9 +17,10 @@ const OtpSchema = new Schema({
     },
 
     expiresAt: {
-        type:  Data,
+        type:  Date,
         required: true
     }
 });
 
-module.exports = mogoose.models.otps || model("opts", OtpSchema);
+
+module.exports = mongoose.models.otps || model("opts", OtpSchema);
