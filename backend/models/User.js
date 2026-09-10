@@ -23,16 +23,24 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+    workEmail: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    phoneNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
     password: {
       type: String,
       required: true,
       minlength: 6,
-    },
-    
-     phoneNumber: {
-      type: String,
-      required: true,
-      trim: true,
     },
 
     role: {

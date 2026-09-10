@@ -2,9 +2,9 @@ const express = require("express");
 
 const router = express.Router();
 
-const sendotprouter = require("./sendotprouter");
+const Authrouter = require("./Authrouter");
 
 
-router.use(sendotprouter);
+router.use(Authrouter);
 
 module.exports = router;
