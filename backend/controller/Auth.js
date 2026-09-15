@@ -44,7 +44,7 @@ const sendotp = async (req, res) => {
 
         // OTP expires in 5 minutes
         const expiry = new Date(
-            Date.now() + 5 * 60 * 1000
+            Date.now() + 6 * 60 * 1000
         );
 
 
@@ -211,9 +211,7 @@ const sendotp = async (req, res) => {
 
 
 
-// ===============================
-// VERIFY OTP + CREATE USER
-// ===============================
+
 
 const Verifyotp = async (req, res) => {
 
@@ -221,26 +219,27 @@ const Verifyotp = async (req, res) => {
 
         const {
             fullName,
-            employeeId,
+            Id,
             personalEmail,
             workEmail,
             phoneNumber,
             password,
-            enterOtp,
-            role
+            enterOtp
         } = req.body;
 
 
-        // Check all fields
+        // ===============================
+        // CHECK ALL FIELDS
+        // ===============================
+
         if (
             !fullName ||
-            !employeeId ||
+            !Id ||
             !personalEmail ||
             !workEmail ||
             !phoneNumber ||
             !password ||
-            !enterOtp ||
-            !role
+            !enterOtp
         ) {
 
             return res.json({
@@ -250,21 +249,51 @@ const Verifyotp = async (req, res) => {
         }
 
 
-        // Personal email
+        // ===============================
+        // PERSONAL EMAIL
+        // ===============================
+
         const UserEmail = personalEmail.trim().toLowerCase();
 
 
-        // Role
-        const UserRole = role.trim().toLowerCase();
+        // ===============================
+        // ID + ROLE
+        // ===============================
+
+        const UserId = Id.trim().toUpperCase();
+
+        let UserRole;
+
+        if (UserId.startsWith("ADM")) {
+
+            UserRole = "admin";
+
+        } else if (UserId.startsWith("EMP")) {
+
+            UserRole = "employee";
+
+        } else {
+
+            return res.json({
+                success: false,
+                message: "Invalid ID. Use EMP001 or ADM001"
+            });
+        }
 
 
-        // Find OTP
+        // ===============================
+        // FIND OTP
+        // ===============================
+
         const otpData = await Otp.findOne({
             email: UserEmail
         });
 
 
-        // OTP not found
+        // ===============================
+        // OTP NOT FOUND
+        // ===============================
+
         if (!otpData) {
 
             return res.json({
@@ -274,7 +303,10 @@ const Verifyotp = async (req, res) => {
         }
 
 
-        // Check OTP expiry
+        // ===============================
+        // CHECK OTP EXPIRY
+        // ===============================
+
         if (new Date() > otpData.expiresAt) {
 
             return res.json({
@@ -284,7 +316,10 @@ const Verifyotp = async (req, res) => {
         }
 
 
-        // Check OTP
+        // ===============================
+        // CHECK OTP
+        // ===============================
+
         if (Number(otpData.otp) !== Number(enterOtp)) {
 
             return res.json({
@@ -294,9 +329,12 @@ const Verifyotp = async (req, res) => {
         }
 
 
-        // Check existing user
+        // ===============================
+        // CHECK EXISTING PERSONAL EMAIL
+        // ===============================
+
         const existingUser = await Usermodel.findOne({
-            email: UserEmail
+            personalEmail: UserEmail
         });
 
 
@@ -310,6 +348,24 @@ const Verifyotp = async (req, res) => {
 
 
         // ===============================
+        // CHECK EXISTING ID
+        // ===============================
+
+        const existingEmployee = await Usermodel.findOne({
+            employeeId: UserId
+        });
+
+
+        if (existingEmployee) {
+
+            return res.json({
+                success: false,
+                message: "ID already registered"
+            });
+        }
+
+
+        // ===============================
         // CREATE USER
         // ===============================
 
@@ -317,7 +373,7 @@ const Verifyotp = async (req, res) => {
 
             fullName,
 
-            employeeId,
+            employeeId: UserId,
 
             personalEmail: UserEmail,
 
@@ -331,13 +387,19 @@ const Verifyotp = async (req, res) => {
         });
 
 
-        // Delete OTP after successful verification
+        // ===============================
+        // DELETE OTP
+        // ===============================
+
         await Otp.deleteOne({
             email: UserEmail
         });
 
 
-        // Success
+        // ===============================
+        // SUCCESS
+        // ===============================
+
         return res.status(201).json({
 
             success: true,
@@ -360,8 +422,6 @@ const Verifyotp = async (req, res) => {
         });
     }
 };
-
-
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
