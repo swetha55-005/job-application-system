@@ -42,7 +42,7 @@ const sendotp = async (req, res) => {
 
         // OTP expires in 5 minutes
         const expiry = new Date(
-            Date.now() + 5 * 60 * 1000
+            Date.now() + 6 * 60 * 1000
         );
 
 
@@ -209,9 +209,7 @@ const sendotp = async (req, res) => {
 
 
 
-// ===============================
-// VERIFY OTP + CREATE USER
-// ===============================
+
 
 const Verifyotp = async (req, res) => {
 
@@ -358,12 +356,6 @@ const Verifyotp = async (req, res) => {
         });
     }
 };
-
-
-
-// ===============================
-// EXPORT
-// ===============================
 
 module.exports = {
     sendotp,
