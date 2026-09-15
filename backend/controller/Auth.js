@@ -360,12 +360,77 @@ const Verifyotp = async (req, res) => {
 };
 
 
+const login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
 
-// ===============================
-// EXPORT
-// ===============================
+        if (!email || !password) {
+            return res.json({
+                success: false,
+                message: "Email and password are required"
+            });
+        }
+
+        const UserEmail = email.trim().toLowerCase();
+
+        const user = await Usermodel.findOne({
+            $or: [
+                { personalEmail: UserEmail },
+                { workEmail: UserEmail }
+            ]
+        });
+
+        if (!user) {
+            return res.json({
+                success: false,
+                message: "User does not exist"
+            });
+        }
+
+        if (user.password !== password) {
+            return res.json({
+                success: false,
+                message: "Invalid password"
+            });
+        }
+
+        if (!user.isActive) {
+            return res.json({
+                success: false,
+                message: "Account is inactive"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Login successful",
+            user: {
+                id: user._id,
+                fullName: user.fullName,
+                employeeId: user.employeeId,
+                role: user.role,
+                personalEmail: user.personalEmail,
+                workEmail: user.workEmail
+            }
+        });
+
+    } catch (err) {
+        console.log("Login error:", err);
+
+        return res.status(500).json({
+            success: false,
+            message: "Server error"
+        });
+    }
+};
+
+
+
+
+
 
 module.exports = {
     sendotp,
-    Verifyotp
+    Verifyotp,
+    login
 };
