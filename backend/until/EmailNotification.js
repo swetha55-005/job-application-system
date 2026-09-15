@@ -14,8 +14,8 @@ const EmailNotification = async ({
             service: "gmail",
 
             auth: {
-                user: "abivengadajalam7708@gmail.com",
-                pass: "ecnj ebjc tkgy zmsr"
+                user:process.env.email_user,
+                pass:process.env.email_pass
             }
         });
 

@@ -7,6 +7,8 @@ const EmailNotification = require("../until/EmailNotification");
 // SEND OTP
 // ===============================
 const sendotp = async (req, res) => {
+
+    
     try {
         const { email } = req.body;
 
@@ -427,10 +429,191 @@ const login = async (req, res) => {
 
 
 
+// ========================================
+// APPROVE EMPLOYEE
+// ========================================
+
+const approveEmployee = async (req, res) => {
+
+    try {
+
+        const { employeeId } = req.params;
+
+        console.log("Employee ID:", employeeId);
+
+
+        // Find employee
+        const employee = await Usermodel.findOne({
+            employeeId: employeeId
+        });
+
+
+        // Employee not found
+        if (!employee) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Employee not found"
+            });
+
+        }
+
+
+        console.log("Employee Found:", employee.fullName);
+        console.log("Employee Email:", employee.personalEmail);
+
+
+        // ========================================
+        // APPROVAL EMAIL HTML
+        // ========================================
+
+        const html = `
+
+            <div style="
+                font-family: Arial, sans-serif;
+                max-width: 600px;
+                margin: auto;
+                padding: 30px;
+                border: 1px solid #e5e7eb;
+                border-radius: 12px;
+                background-color: #ffffff;
+            ">
+
+                <h2 style="
+                    color: #16a34a;
+                    margin-bottom: 20px;
+                ">
+                    Application Approved
+                </h2>
+
+
+                <p>
+                    Dear
+                    <strong>${employee.fullName}</strong>,
+                </p>
+
+
+                <p>
+                    Your application has been
+                    <strong style="color: green;">
+                        approved
+                    </strong>
+                    by the Admin.
+                </p>
+
+
+                <p>
+                    <strong>Employee ID:</strong>
+                    ${employee.employeeId}
+                </p>
+
+
+                <p>
+                    <strong>Status:</strong>
+                    <span style="color: green;">
+                        Approved
+                    </span>
+                </p>
+
+
+                <p>
+                    You can now continue with your assigned work.
+                </p>
+
+
+                <br>
+
+
+                <p>
+                    Regards,
+                    <br>
+                    <strong>
+                        TechNova Private Limited
+                    </strong>
+                </p>
+
+            </div>
+
+        `;
+
+
+        // ========================================
+        // SEND APPROVAL EMAIL
+        // ========================================
+
+        const isMailSent = await EmailNotification({
+
+            receiverEmail: employee.personalEmail,
+
+            subject:
+                "Application Approved - TechNova Solutions",
+
+            dynamicHtml: html
+
+        });
+
+
+        // Email failed
+        if (!isMailSent) {
+
+            return res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Employee approved but email sending failed"
+
+            });
+
+        }
+
+
+        // ========================================
+        // SUCCESS
+        // ========================================
+
+        return res.status(200).json({
+
+            success: true,
+
+            message:
+                "Employee approved and email sent successfully"
+
+        });
+
+
+    } catch (error) {
+
+        console.log(
+            "Approve Employee Error:",
+            error
+        );
+
+
+        return res.status(500).json({
+
+            success: false,
+
+            message: "Server error"
+
+        });
+
+    }
+
+};
+
+
+
+
+
+
+
+
 
 
 module.exports = {
     sendotp,
     Verifyotp,
-    login
+    login,
+    approveEmployee
 };
