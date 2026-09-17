@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    employeeId: {
+    Id: {
       type: String,
       required: true,
       unique: true,
@@ -44,10 +44,11 @@ const userSchema = new mongoose.Schema(
     },
 
     role: {
-      type: String,
-      enum: ["employee", "admin"],
-      default: "employee",
-    },
+    type: String,
+    enum: ["employee", "admin"],
+    required: true,
+    default: "employee",
+},
 
     isVerified: {
       type: Boolean,
