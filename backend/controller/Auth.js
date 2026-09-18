@@ -2,23 +2,22 @@ const Otp = require("../models/Otp");
 const Usermodel = require("../models/User");
 const EmailNotification = require("../until/EmailNotification");
 
-
-// ===============================
+// =====================================================
 // SEND OTP
-// ===============================
-const sendotp = async (req, res) => {
+// =====================================================
 
-    
+const sendotp = async (req, res) => {
     try {
         const { email } = req.body;
 
-        console.log("email:", email);
+        console.log("========== SEND OTP ==========");
+        console.log("Email:", email);
 
         // Check email
         if (!email) {
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "Email is required. Please provide an email!"
+                message: "Email is required. Please provide an email!",
             });
         }
 
@@ -27,13 +26,16 @@ const sendotp = async (req, res) => {
 
         // Check existing user
         const existingUser = await Usermodel.findOne({
-            email: UserEmail
+            $or: [
+                { personalEmail: UserEmail },
+                { workEmail: UserEmail },
+            ],
         });
 
         if (existingUser) {
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "Account already exists"
+                message: "Account already exists",
             });
         }
 
@@ -42,179 +44,257 @@ const sendotp = async (req, res) => {
             100000 + Math.random() * 900000
         );
 
-        // OTP expires in 5 minutes
+        // OTP expires in 6 minutes
         const expiry = new Date(
             Date.now() + 6 * 60 * 1000
         );
 
-
         // Save OTP
         const updateotp = await Otp.updateOne(
             {
-                email: UserEmail
+                email: UserEmail,
             },
             {
                 $set: {
                     otp: otp,
-                    expiresAt: expiry
-                }
+                    expiresAt: expiry,
+                },
             },
             {
-                upsert: true
+                upsert: true,
             }
         );
 
+        console.log("OTP DB Response:", updateotp);
 
         // Check OTP saved
         if (
             updateotp.modifiedCount === 0 &&
-            updateotp.upsertedCount === 0
+            updateotp.upsertedCount === 0 &&
+            updateotp.matchedCount === 0
         ) {
-            return res.json({
+            return res.status(500).json({
                 success: false,
-                message: "Failed to save OTP. Please try again."
+                message: "Failed to save OTP. Please try again.",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // OTP EMAIL HTML
-        // ===============================
+        // =====================================================
 
         const html = `
-<div style="margin:0;padding:0;background-color:#f4f7fb;font-family:Arial,sans-serif;">
+        <div style="
+            margin:0;
+            padding:0;
+            background-color:#f4f7fb;
+            font-family:Arial,sans-serif;
+        ">
 
-    <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 15px;">
-        <tr>
-            <td align="center">
+            <table
+                width="100%"
+                cellpadding="0"
+                cellspacing="0"
+                style="padding:40px 15px;"
+            >
+                <tr>
+                    <td align="center">
 
-                <table width="100%" cellpadding="0" cellspacing="0"
-                    style="max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.08);">
+                        <table
+                            width="100%"
+                            cellpadding="0"
+                            cellspacing="0"
+                            style="
+                                max-width:600px;
+                                background:#ffffff;
+                                border-radius:18px;
+                                overflow:hidden;
+                                box-shadow:0 4px 18px rgba(0,0,0,0.08);
+                            "
+                        >
 
-                    <!-- Header -->
-                    <tr>
-                        <td align="center"
-                            style="background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:35px 20px;">
+                            <!-- HEADER -->
+                            <tr>
+                                <td
+                                    align="center"
+                                    style="
+                                        background:linear-gradient(
+                                            135deg,
+                                            #0f172a,
+                                            #1e3a8a
+                                        );
+                                        padding:35px 20px;
+                                    "
+                                >
 
-                            <h1 style="margin:0;color:#ffffff;font-size:28px;">
-                                Shankaeshwari Techonation
-                            </h1>
+                                    <h1 style="
+                                        margin:0;
+                                        color:#ffffff;
+                                        font-size:28px;
+                                    ">
+                                        Shankaeshwari Techonation
+                                    </h1>
 
-                            <p style="margin-top:8px;color:#dbeafe;font-size:14px;">
-                                Learning Management System
-                            </p>
+                                    <p style="
+                                        margin-top:8px;
+                                        color:#dbeafe;
+                                        font-size:14px;
+                                    ">
+                                        Learning Management System
+                                    </p>
 
-                        </td>
-                    </tr>
+                                </td>
+                            </tr>
 
+                            <!-- BODY -->
+                            <tr>
+                                <td
+                                    style="
+                                        padding:40px 30px;
+                                        text-align:center;
+                                    "
+                                >
 
-                    <!-- Body -->
-                    <tr>
-                        <td style="padding:40px 30px;text-align:center;">
+                                    <h2 style="
+                                        margin:0;
+                                        color:#111827;
+                                        font-size:24px;
+                                    ">
+                                        OTP Verification
+                                    </h2>
 
-                            <h2 style="margin:0;color:#111827;font-size:24px;">
-                                OTP Verification
-                            </h2>
+                                    <p style="
+                                        margin-top:15px;
+                                        color:#4b5563;
+                                        font-size:15px;
+                                        line-height:26px;
+                                    ">
+                                        Use the verification code below
+                                        to continue your process.
+                                    </p>
 
-                            <p style="margin-top:15px;color:#4b5563;font-size:15px;line-height:26px;">
-                                Use the verification code below to continue your process.
-                            </p>
+                                    <!-- OTP BOX -->
+                                    <div style="
+                                        margin:35px auto;
+                                        background:#eff6ff;
+                                        border:2px dashed #2563eb;
+                                        border-radius:14px;
+                                        padding:20px;
+                                        max-width:280px;
+                                    ">
 
+                                        <div style="
+                                            font-size:36px;
+                                            font-weight:bold;
+                                            letter-spacing:10px;
+                                            color:#1d4ed8;
+                                        ">
+                                            ${otp}
+                                        </div>
 
-                            <!-- OTP Box -->
-                            <div
-                                style="margin:35px auto;background:#eff6ff;border:2px dashed #2563eb;border-radius:14px;padding:20px;max-width:280px;">
+                                    </div>
 
-                                <div style="font-size:36px;font-weight:bold;letter-spacing:10px;color:#1d4ed8;">
-                                    ${otp}
-                                </div>
+                                    <p style="
+                                        margin-top:20px;
+                                        color:#ef4444;
+                                        font-size:14px;
+                                        font-weight:600;
+                                    ">
+                                        This OTP will expire in 6 minutes.
+                                    </p>
 
-                            </div>
+                                    <p style="
+                                        margin-top:25px;
+                                        color:#6b7280;
+                                        font-size:14px;
+                                        line-height:24px;
+                                    ">
+                                        If you didn't request this OTP,
+                                        you can safely ignore this email.
+                                    </p>
 
+                                </td>
+                            </tr>
 
-                            <p style="margin-top:20px;color:#ef4444;font-size:14px;font-weight:600;">
-                                This OTP will expire in 5 minutes.
-                            </p>
+                            <!-- FOOTER -->
+                            <tr>
+                                <td style="
+                                    background:#f9fafb;
+                                    padding:22px;
+                                    text-align:center;
+                                    border-top:1px solid #e5e7eb;
+                                ">
 
+                                    <p style="
+                                        margin:0;
+                                        color:#6b7280;
+                                        font-size:13px;
+                                    ">
+                                        © 2026 SAN Technovation Pvt. Ltd.
+                                    </p>
 
-                            <p style="margin-top:25px;color:#6b7280;font-size:14px;line-height:24px;">
-                                If you didn't request this OTP, you can safely ignore this email.
-                            </p>
+                                    <p style="
+                                        margin-top:8px;
+                                        color:#9ca3af;
+                                        font-size:12px;
+                                    ">
+                                        This is an automated email.
+                                        Please do not reply.
+                                    </p>
 
-                        </td>
-                    </tr>
+                                </td>
+                            </tr>
 
+                        </table>
 
-                    <!-- Footer -->
-                    <tr>
-                        <td
-                            style="background:#f9fafb;padding:22px;text-align:center;border-top:1px solid #e5e7eb;">
+                    </td>
+                </tr>
+            </table>
 
-                            <p style="margin:0;color:#6b7280;font-size:13px;">
-                                © 2026 SAN Technovation Pvt. Ltd.
-                            </p>
+        </div>
+        `;
 
-                            <p style="margin-top:8px;color:#9ca3af;font-size:12px;">
-                                This is an automated email. Please do not reply.
-                            </p>
-
-                        </td>
-                    </tr>
-
-                </table>
-
-            </td>
-        </tr>
-    </table>
-
-</div>
-`;
-
-
-        // ===============================
+        // =====================================================
         // SEND EMAIL
-        // ===============================
+        // =====================================================
 
         const isMailSent = await EmailNotification({
             receiverEmail: UserEmail,
             subject: "OTP Verification",
-            dynamicHtml: html
+            dynamicHtml: html,
         });
-
 
         // Check email sent
         if (!isMailSent) {
             return res.status(500).json({
                 success: false,
-                message: "Failed to send OTP to Mail! Please contact support Team."
+                message:
+                    "Failed to send OTP to Mail! Please contact support Team.",
             });
         }
-
 
         // Success
         return res.status(201).json({
             success: true,
-            message: "OTP sent successfully"
+            message: "OTP sent successfully",
         });
 
-
     } catch (err) {
-
         console.log("Error in send OTP:", err);
 
         return res.status(500).json({
             success: false,
-            message: "Internal server error"
+            message: "Internal server error",
         });
     }
 };
 
 
-
-
+// =====================================================
+// VERIFY OTP
+// =====================================================
 
 const Verifyotp = async (req, res) => {
-
     try {
 
         const {
@@ -224,13 +304,18 @@ const Verifyotp = async (req, res) => {
             workEmail,
             phoneNumber,
             password,
-            enterOtp
+            enterOtp,
         } = req.body;
 
+        console.log("========== VERIFY OTP ==========");
+        console.log("Full Name:", fullName);
+        console.log("ID:", Id);
+        console.log("Personal Email:", personalEmail);
+        console.log("Work Email:", workEmail);
 
-        // ===============================
+        // =====================================================
         // CHECK ALL FIELDS
-        // ===============================
+        // =====================================================
 
         if (
             !fullName ||
@@ -241,257 +326,338 @@ const Verifyotp = async (req, res) => {
             !password ||
             !enterOtp
         ) {
-
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "All fields are required!"
+                message: "All fields are required!",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // PERSONAL EMAIL
-        // ===============================
+        // =====================================================
 
-        const UserEmail = personalEmail.trim().toLowerCase();
+        const UserEmail = personalEmail
+            .trim()
+            .toLowerCase();
 
-
-        // ===============================
+        // =====================================================
         // ID + ROLE
-        // ===============================
+        // =====================================================
 
-        const UserId = Id.trim().toUpperCase();
+        const UserId = Id
+            .trim()
+            .toUpperCase();
 
         let UserRole;
 
+        // ADM001 → admin
         if (UserId.startsWith("ADM")) {
 
             UserRole = "admin";
 
-        } else if (UserId.startsWith("EMP")) {
+        }
+
+        // EMP001 → employee
+        else if (UserId.startsWith("EMP")) {
 
             UserRole = "employee";
 
-        } else {
+        }
 
-            return res.json({
+        // Invalid ID
+        else {
+
+            return res.status(400).json({
                 success: false,
-                message: "Invalid ID. Use EMP001 or ADM001"
+                message:
+                    "Invalid ID. Use EMP001 or ADM001",
             });
         }
 
+        console.log("Detected Role:", UserRole);
 
-        // ===============================
+        // =====================================================
         // FIND OTP
-        // ===============================
+        // =====================================================
 
         const otpData = await Otp.findOne({
-            email: UserEmail
+            email: UserEmail,
         });
 
-
-        // ===============================
-        // OTP NOT FOUND
-        // ===============================
-
+        // OTP not found
         if (!otpData) {
 
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "OTP not found!"
+                message: "OTP not found!",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // CHECK OTP EXPIRY
-        // ===============================
+        // =====================================================
 
         if (new Date() > otpData.expiresAt) {
 
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "OTP expired!"
+                message: "OTP expired!",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // CHECK OTP
-        // ===============================
+        // =====================================================
 
-        if (Number(otpData.otp) !== Number(enterOtp)) {
+        if (
+            Number(otpData.otp) !== Number(enterOtp)
+        ) {
 
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "Invalid OTP"
+                message: "Invalid OTP",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // CHECK EXISTING PERSONAL EMAIL
-        // ===============================
+        // =====================================================
 
         const existingUser = await Usermodel.findOne({
-            personalEmail: UserEmail
+            $or: [
+                { personalEmail: UserEmail },
+                { workEmail: UserEmail },
+            ],
         });
-
 
         if (existingUser) {
 
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "Email already registered"
+                message: "Email already registered",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // CHECK EXISTING ID
-        // ===============================
+        // =====================================================
 
         const existingEmployee = await Usermodel.findOne({
-            employeeId: UserId
+            Id: UserId,
         });
-
 
         if (existingEmployee) {
 
-            return res.json({
+            return res.status(400).json({
                 success: false,
-                message: "ID already registered"
+                message: "ID already registered",
             });
         }
 
-
-        // ===============================
+        // =====================================================
         // CREATE USER
-        // ===============================
+        // =====================================================
 
         const saveUser = await Usermodel.create({
 
-            fullName,
+            fullName: fullName.trim(),
 
-            employeeId: UserId,
+            Id: UserId,
 
             personalEmail: UserEmail,
 
-            workEmail: workEmail.trim().toLowerCase(),
+            workEmail: workEmail
+                .trim()
+                .toLowerCase(),
 
-            phoneNumber,
+            phoneNumber: phoneNumber.trim(),
 
-            password,
+            password: password,
 
-            role: UserRole
+            // IMPORTANT
+            // ID based automatic role
+            role: UserRole,
+
+            isVerified: true,
+
+            isActive: true,
         });
 
+        console.log(
+            "User created successfully:",
+            saveUser._id
+        );
 
-        // ===============================
+        // =====================================================
         // DELETE OTP
-        // ===============================
+        // =====================================================
 
         await Otp.deleteOne({
-            email: UserEmail
+            email: UserEmail,
         });
 
-
-        // ===============================
+        // =====================================================
         // SUCCESS
-        // ===============================
+        // =====================================================
 
         return res.status(201).json({
 
             success: true,
 
-            message: "OTP verified successfully",
+            message:
+                "OTP verified successfully",
 
-            saveUser
+            user: {
+                id: saveUser._id,
+                Id: saveUser.Id,
+                fullName: saveUser.fullName,
+                personalEmail: saveUser.personalEmail,
+                workEmail: saveUser.workEmail,
+                phoneNumber: saveUser.phoneNumber,
+                role: saveUser.role,
+            },
         });
-
 
     } catch (err) {
 
-        console.log("Verify OTP error:", err);
+        console.log(
+            "Verify OTP error:",
+            err
+        );
 
         return res.status(500).json({
-
             success: false,
-
-            message: "Server error"
+            message: "Server error",
+            error: err.message,
         });
     }
 };
+
+
+// =====================================================
+// LOGIN
+// =====================================================
+
 const login = async (req, res) => {
+
     try {
-        const { email, password } = req.body;
+
+        const {
+            email,
+            password,
+        } = req.body;
 
         if (!email || !password) {
-            return res.json({
+
+            return res.status(400).json({
                 success: false,
-                message: "Email and password are required"
+                message:
+                    "Email and password are required",
             });
         }
 
-        const UserEmail = email.trim().toLowerCase();
+        const UserEmail = email
+            .trim()
+            .toLowerCase();
+
+        // =====================================================
+        // FIND USER
+        // =====================================================
 
         const user = await Usermodel.findOne({
+
             $or: [
-                { personalEmail: UserEmail },
-                { workEmail: UserEmail }
-            ]
+                {
+                    personalEmail: UserEmail,
+                },
+                {
+                    workEmail: UserEmail,
+                },
+            ],
         });
 
         if (!user) {
-            return res.json({
+
+            return res.status(404).json({
                 success: false,
-                message: "User does not exist"
+                message: "User does not exist",
             });
         }
+
+        // =====================================================
+        // PASSWORD CHECK
+        // =====================================================
 
         if (user.password !== password) {
-            return res.json({
+
+            return res.status(401).json({
                 success: false,
-                message: "Invalid password"
+                message: "Invalid password",
             });
         }
+
+        // =====================================================
+        // ACTIVE CHECK
+        // =====================================================
 
         if (!user.isActive) {
-            return res.json({
+
+            return res.status(403).json({
                 success: false,
-                message: "Account is inactive"
+                message: "Account is inactive",
             });
         }
 
+        // =====================================================
+        // LOGIN SUCCESS
+        // =====================================================
+
         return res.status(200).json({
+
             success: true,
+
             message: "Login successful",
+
             user: {
+
                 id: user._id,
+
+                Id: user.Id,
+
                 fullName: user.fullName,
-                employeeId: user.employeeId,
+
+                personalEmail:
+                    user.personalEmail,
+
+                workEmail:
+                    user.workEmail,
+
+                phoneNumber:
+                    user.phoneNumber,
+
                 role: user.role,
-                personalEmail: user.personalEmail,
-                workEmail: user.workEmail
-            }
+
+            },
         });
 
     } catch (err) {
-        console.log("Login error:", err);
+
+        console.log(
+            "Login error:",
+            err
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Server error"
+            message: "Server error",
         });
     }
 };
 
 
-
-
-// ========================================
+// =====================================================
 // APPROVE EMPLOYEE
-// ========================================
+// =====================================================
 
 const approveEmployee = async (req, res) => {
 
@@ -499,119 +665,122 @@ const approveEmployee = async (req, res) => {
 
         const { employeeId } = req.params;
 
-        console.log("Employee ID:", employeeId);
+        console.log(
+            "Employee ID:",
+            employeeId
+        );
 
+        // =====================================================
+        // FIND EMPLOYEE
+        // =====================================================
 
-        // Find employee
         const employee = await Usermodel.findOne({
-            employeeId: employeeId
+            Id: employeeId.trim().toUpperCase(),
         });
-
 
         // Employee not found
         if (!employee) {
 
             return res.status(404).json({
                 success: false,
-                message: "Employee not found"
+                message: "Employee not found",
             });
-
         }
 
+        console.log(
+            "Employee Found:",
+            employee.fullName
+        );
 
-        console.log("Employee Found:", employee.fullName);
-        console.log("Employee Email:", employee.personalEmail);
+        console.log(
+            "Employee Email:",
+            employee.personalEmail
+        );
 
-
-        // ========================================
+        // =====================================================
         // APPROVAL EMAIL HTML
-        // ========================================
+        // =====================================================
 
         const html = `
 
-            <div style="
-                font-family: Arial, sans-serif;
-                max-width: 600px;
-                margin: auto;
-                padding: 30px;
-                border: 1px solid #e5e7eb;
-                border-radius: 12px;
-                background-color: #ffffff;
+        <div style="
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: auto;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            background-color: #ffffff;
+        ">
+
+            <h2 style="
+                color: #16a34a;
+                margin-bottom: 20px;
             ">
+                Application Approved
+            </h2>
 
-                <h2 style="
-                    color: #16a34a;
-                    margin-bottom: 20px;
-                ">
-                    Application Approved
-                </h2>
+            <p>
+                Dear
+                <strong>
+                    ${employee.fullName}
+                </strong>,
+            </p>
 
+            <p>
+                Your application has been
+                <strong style="color: green;">
+                    approved
+                </strong>
+                by the Admin.
+            </p>
 
-                <p>
-                    Dear
-                    <strong>${employee.fullName}</strong>,
-                </p>
+            <p>
+                <strong>Employee ID:</strong>
+                ${employee.Id}
+            </p>
 
+            <p>
+                <strong>Status:</strong>
+                <span style="color: green;">
+                    Approved
+                </span>
+            </p>
 
-                <p>
-                    Your application has been
-                    <strong style="color: green;">
-                        approved
-                    </strong>
-                    by the Admin.
-                </p>
+            <p>
+                You can now continue with
+                your assigned work.
+            </p>
 
+            <br>
 
-                <p>
-                    <strong>Employee ID:</strong>
-                    ${employee.employeeId}
-                </p>
-
-
-                <p>
-                    <strong>Status:</strong>
-                    <span style="color: green;">
-                        Approved
-                    </span>
-                </p>
-
-
-                <p>
-                    You can now continue with your assigned work.
-                </p>
-
-
+            <p>
+                Regards,
                 <br>
+                <strong>
+                    TechNova Private Limited
+                </strong>
+            </p>
 
-
-                <p>
-                    Regards,
-                    <br>
-                    <strong>
-                        TechNova Private Limited
-                    </strong>
-                </p>
-
-            </div>
+        </div>
 
         `;
 
-
-        // ========================================
+        // =====================================================
         // SEND APPROVAL EMAIL
-        // ========================================
+        // =====================================================
 
-        const isMailSent = await EmailNotification({
+        const isMailSent =
+            await EmailNotification({
 
-            receiverEmail: employee.personalEmail,
+                receiverEmail:
+                    employee.personalEmail,
 
-            subject:
-                "Application Approved - TechNova Solutions",
+                subject:
+                    "Application Approved - TechNova Solutions",
 
-            dynamicHtml: html
-
-        });
-
+                dynamicHtml: html,
+            });
 
         // Email failed
         if (!isMailSent) {
@@ -621,26 +790,21 @@ const approveEmployee = async (req, res) => {
                 success: false,
 
                 message:
-                    "Employee approved but email sending failed"
-
+                    "Employee approved but email sending failed",
             });
-
         }
 
-
-        // ========================================
+        // =====================================================
         // SUCCESS
-        // ========================================
+        // =====================================================
 
         return res.status(200).json({
 
             success: true,
 
             message:
-                "Employee approved and email sent successfully"
-
+                "Employee approved and email sent successfully",
         });
-
 
     } catch (error) {
 
@@ -649,31 +813,23 @@ const approveEmployee = async (req, res) => {
             error
         );
 
-
         return res.status(500).json({
 
             success: false,
 
-            message: "Server error"
-
+            message: "Server error",
         });
-
     }
-
 };
 
 
-
-
-
-
-
-
-
+// =====================================================
+// EXPORT
+// =====================================================
 
 module.exports = {
     sendotp,
     Verifyotp,
     login,
-    approveEmployee
+    approveEmployee,
 };

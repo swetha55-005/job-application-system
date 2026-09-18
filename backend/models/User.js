@@ -8,11 +8,12 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    employeeId: {
+    Id: {
       type: String,
       required: true,
       unique: true,
       trim: true,
+      uppercase: true,
     },
 
     personalEmail: {
@@ -45,8 +46,8 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["employee", "admin"],
-      default: "employee",
+      enum: ["admin", "employee"],
+      required: true,
     },
 
     isVerified: {
