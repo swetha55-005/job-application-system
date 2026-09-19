@@ -663,12 +663,23 @@ const approveEmployee = async (req, res) => {
 
     try {
 
-        const { employeeId } = req.params;
+        const { employeeId } = req.body;
 
         console.log(
             "Employee ID:",
             employeeId
         );
+
+        // =====================================================
+        // VALIDATE EMPLOYEE ID
+        // =====================================================
+
+        if (!employeeId) {
+            return res.status(400).json({
+                success: false,
+                message: "Employee ID is required",
+            });
+        }
 
         // =====================================================
         // FIND EMPLOYEE
