@@ -350,14 +350,14 @@ const Verifyotp = async (req, res) => {
 
         let UserRole;
 
-        // ADM001 → admin
+        // ADM001 -> admin
         if (UserId.startsWith("ADM")) {
 
             UserRole = "admin";
 
         }
 
-        // EMP001 → employee
+        // EMP001 -> employee
         else if (UserId.startsWith("EMP")) {
 
             UserRole = "employee";
@@ -439,13 +439,15 @@ const Verifyotp = async (req, res) => {
         }
 
         // =====================================================
-        // CHECK EXISTING ID
+        // CHECK EXISTING EMPLOYEE ID
         // =====================================================
 
         const existingEmployee = await Usermodel.findOne({
-            Id: UserId,
-        });
-
+    $or: [
+        { Id: UserId },
+        { employeeId: UserId },
+    ],
+});
         if (existingEmployee) {
 
             return res.status(400).json({
@@ -458,34 +460,43 @@ const Verifyotp = async (req, res) => {
         // CREATE USER
         // =====================================================
 
-        const saveUser = await Usermodel.create({
+        // IMPORTANT:
+        // Database field is employeeId, NOT Id
+const saveUser = await Usermodel.create({
+    fullName: fullName.trim(),
 
-            fullName: fullName.trim(),
+    Id: UserId,
+    employeeId: UserId,
 
-            Id: UserId,
+    personalEmail: UserEmail,
 
-            personalEmail: UserEmail,
+    workEmail: workEmail
+        .trim()
+        .toLowerCase(),
 
-            workEmail: workEmail
-                .trim()
-                .toLowerCase(),
+    phoneNumber: phoneNumber.trim(),
 
-            phoneNumber: phoneNumber.trim(),
+    password: password,
 
-            password: password,
+    role: UserRole,
 
-            // IMPORTANT
-            // ID based automatic role
-            role: UserRole,
+    isVerified: true,
 
-            isVerified: true,
-
-            isActive: true,
-        });
-
+    isActive: true,
+});
         console.log(
             "User created successfully:",
             saveUser._id
+        );
+
+        console.log(
+            "Saved Employee ID:",
+            saveUser.employeeId
+        );
+
+        console.log(
+            "Saved Role:",
+            saveUser.role
         );
 
         // =====================================================
@@ -509,12 +520,26 @@ const Verifyotp = async (req, res) => {
 
             user: {
                 id: saveUser._id,
-                Id: saveUser.Id,
-                fullName: saveUser.fullName,
-                personalEmail: saveUser.personalEmail,
-                workEmail: saveUser.workEmail,
-                phoneNumber: saveUser.phoneNumber,
-                role: saveUser.role,
+
+                Id: saveUser.employeeId,
+
+                employeeId:
+                    saveUser.employeeId,
+
+                fullName:
+                    saveUser.fullName,
+
+                role:
+                    saveUser.role,
+
+                personalEmail:
+                    saveUser.personalEmail,
+
+                workEmail:
+                    saveUser.workEmail,
+
+                phoneNumber:
+                    saveUser.phoneNumber,
             },
         });
 
@@ -539,7 +564,6 @@ const Verifyotp = async (req, res) => {
 // =====================================================
 
 const login = async (req, res) => {
-
     try {
 
         const {
@@ -548,36 +572,34 @@ const login = async (req, res) => {
         } = req.body;
 
         if (!email || !password) {
-
             return res.status(400).json({
                 success: false,
-                message:
-                    "Email and password are required",
+                message: "Email and password are required",
             });
         }
 
-        const UserEmail = email
-            .trim()
-            .toLowerCase();
+        const UserEmail =
+            email.trim().toLowerCase();
 
         // =====================================================
         // FIND USER
         // =====================================================
 
-        const user = await Usermodel.findOne({
-
-            $or: [
-                {
-                    personalEmail: UserEmail,
-                },
-                {
-                    workEmail: UserEmail,
-                },
-            ],
-        });
+        const user =
+            await Usermodel.findOne({
+                $or: [
+                    {
+                        personalEmail:
+                            UserEmail,
+                    },
+                    {
+                        workEmail:
+                            UserEmail,
+                    },
+                ],
+            });
 
         if (!user) {
-
             return res.status(404).json({
                 success: false,
                 message: "User does not exist",
@@ -589,7 +611,6 @@ const login = async (req, res) => {
         // =====================================================
 
         if (user.password !== password) {
-
             return res.status(401).json({
                 success: false,
                 message: "Invalid password",
@@ -601,7 +622,6 @@ const login = async (req, res) => {
         // =====================================================
 
         if (!user.isActive) {
-
             return res.status(403).json({
                 success: false,
                 message: "Account is inactive",
@@ -611,6 +631,15 @@ const login = async (req, res) => {
         // =====================================================
         // LOGIN SUCCESS
         // =====================================================
+        req.session.user = {
+            id: user._id.toString(),
+            employeeId:user.employeeId,
+            role:user.role,
+            fullName:user.fullName,
+        };
+
+        console.log("session created", req.session.user);
+
 
         return res.status(200).json({
 
@@ -622,9 +651,13 @@ const login = async (req, res) => {
 
                 id: user._id,
 
-                Id: user.Id,
+                Id: user.employeeId,
 
-                fullName: user.fullName,
+                employeeId:
+                    user.employeeId,
+
+                fullName:
+                    user.fullName,
 
                 personalEmail:
                     user.personalEmail,
@@ -635,8 +668,8 @@ const login = async (req, res) => {
                 phoneNumber:
                     user.phoneNumber,
 
-                role: user.role,
-
+                role:
+                    user.role,
             },
         });
 
@@ -685,9 +718,16 @@ const approveEmployee = async (req, res) => {
         // FIND EMPLOYEE
         // =====================================================
 
-        const employee = await Usermodel.findOne({
-            Id: employeeId.trim().toUpperCase(),
-        });
+        const normalizedEmployeeId =
+            employeeId
+                .trim()
+                .toUpperCase();
+
+        const employee =
+            await Usermodel.findOne({
+                employeeId:
+                    normalizedEmployeeId,
+            });
 
         // Employee not found
         if (!employee) {
@@ -701,6 +741,11 @@ const approveEmployee = async (req, res) => {
         console.log(
             "Employee Found:",
             employee.fullName
+        );
+
+        console.log(
+            "Employee ID:",
+            employee.employeeId
         );
 
         console.log(
@@ -748,7 +793,7 @@ const approveEmployee = async (req, res) => {
 
             <p>
                 <strong>Employee ID:</strong>
-                ${employee.Id}
+                ${employee.employeeId}
             </p>
 
             <p>

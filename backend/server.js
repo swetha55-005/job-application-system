@@ -5,14 +5,14 @@ const cors = require("cors");
 const connectDB = require("./config/db");
 const listen = require("./config/listen");
 const indexRouter = require("./router");
+const session = require("express-session");
+const { MongoStore } = require("connect-mongo");
 
 dotenv.config({ quiet: true });
 
 const app = express();
 
-// ===============================
-// CORS
-// ===============================
+
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -20,22 +20,37 @@ app.use(
   })
 );
 
-// ===============================
-// JSON
-// ===============================
+
 app.use(express.json());
 
-// ===============================
-// ROUTES
-// ===============================
+app.use(
+    session({
+        secret:
+            process.env.SESSION_SECRET ||
+            "technova-session-secret",
+
+        resave: false,
+
+        saveUninitialized: false,
+
+        store: MongoStore.create({
+            mongoUrl: process.env.MONGO_URI,
+            collectionName: "sessions",
+        }),
+
+        cookie: {
+            httpOnly: true,
+            secure: false,
+            maxAge: 24 * 60 * 60 * 1000,
+        },
+    })
+);
+
+
 app.use(indexRouter);
 
-// ===============================
-// DATABASE
-// ===============================
+
 connectDB();
 
-// ===============================
-// SERVER
-// ===============================
+
 listen(app);

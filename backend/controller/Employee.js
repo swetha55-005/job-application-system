@@ -7,7 +7,7 @@ const getAllEmployees = async (req, res) => {
             { role: "employee" },
             {
                 _id: 1,
-                Id: 1,
+                employeeId: 1,
                 fullName: 1,
                 personalEmail: 1,
                 workEmail: 1,

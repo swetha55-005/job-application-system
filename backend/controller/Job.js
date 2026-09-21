@@ -1,11 +1,15 @@
+
+const mongoose = require("mongoose");
 const JobModel = require("../models/Job");
 const UserModel = require("../models/User");
 const NotificationModel = require("../models/Notification");
 const EmailNotification = require("../until/EmailNotification");
 
+
 // =====================================================
 // FIND USER BY ID
 // =====================================================
+
 
 const findUser = async (userId) => {
     try {
@@ -15,17 +19,34 @@ const findUser = async (userId) => {
             return null;
         }
 
+        const conditions = [
+            { Id: cleanId },
+            { employeeId: cleanId },
+        ];
+
+        // MongoDB _id also support
+        if (mongoose.Types.ObjectId.isValid(cleanId)) {
+            conditions.push({
+                _id: cleanId,
+            });
+        }
+
         const user = await UserModel.findOne({
-            Id: cleanId,
+            $or: conditions,
         });
 
         return user;
 
     } catch (error) {
-        console.error("Find User Error:", error);
+        console.error(
+            "Find User Error:",
+            error
+        );
+
         return null;
     }
 };
+
 
 
 // =====================================================

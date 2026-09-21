@@ -8,13 +8,21 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
+
     Id: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      uppercase: true,
-    },
+  type: String,
+  required: true,
+  unique: true,
+  trim: true,
+},
+
+employeeId: {
+  type: String,
+  trim: true,
+  sparse: true,
+},
+
+
 
     personalEmail: {
       type: String,
