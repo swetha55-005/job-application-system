@@ -6,7 +6,7 @@ const connectDB = require("./config/db");
 const listen = require("./config/listen");
 const indexRouter = require("./router");
 const session = require("express-session");
-const { MongoStore } = require("connect-mongo");
+const MongoDBStore = require("connect-mongodb-session")(session);
 
 dotenv.config({ quiet: true });
 
@@ -23,6 +23,17 @@ app.use(
 
 app.use(express.json());
 
+
+const store = new MongoDBStore({
+    uri: process.env.MONGO_URI,
+    databaseName: "jobapplications",
+    collection: "sessions",
+    
+});
+
+store.on("error", (error) => {
+  console.log("mongodb session store error",error);
+});
 app.use(
     session({
         secret:
@@ -33,10 +44,7 @@ app.use(
 
         saveUninitialized: false,
 
-        store: MongoStore.create({
-            mongoUrl: process.env.MONGO_URI,
-            collectionName: "sessions",
-        }),
+        store: store,
 
         cookie: {
             httpOnly: true,

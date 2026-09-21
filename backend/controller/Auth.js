@@ -2,6 +2,7 @@ const Otp = require("../models/Otp");
 const Usermodel = require("../models/User");
 const EmailNotification = require("../until/EmailNotification");
 
+
 // =====================================================
 // SEND OTP
 // =====================================================
@@ -23,6 +24,7 @@ const sendotp = async (req, res) => {
 
         // Convert email to lowercase
         const UserEmail = email.trim().toLowerCase();
+        console.log("login email",UserEmail);
 
         // Check existing user
         const existingUser = await Usermodel.findOne({
@@ -31,6 +33,8 @@ const sendotp = async (req, res) => {
                 { workEmail: UserEmail },
             ],
         });
+
+        
 
         if (existingUser) {
             return res.status(400).json({
@@ -585,6 +589,7 @@ const login = async (req, res) => {
         // FIND USER
         // =====================================================
 
+        
         const user =
             await Usermodel.findOne({
                 $or: [
@@ -598,6 +603,7 @@ const login = async (req, res) => {
                     },
                 ],
             });
+            console.log("login found user",user);
 
         if (!user) {
             return res.status(404).json({
@@ -631,47 +637,49 @@ const login = async (req, res) => {
         // =====================================================
         // LOGIN SUCCESS
         // =====================================================
-        req.session.user = {
-            id: user._id.toString(),
-            employeeId:user.employeeId,
-            role:user.role,
-            fullName:user.fullName,
-        };
+    req.session.user = {
+    id: user._id.toString(),
+    employeeId: user.employeeId,
+    role: user.role,
+    fullName: user.fullName,
+    personalEmail: user.personalEmail,
+    workEmail: user.workEmail,
+    phoneNumber: user.phoneNumber,
+};
 
-        console.log("session created", req.session.user);
+console.log("session created", req.session.user);
 
 
-        return res.status(200).json({
+console.log("Session id:",req.sessionID);
+console.log("session data:",req.session);
+req.session.save((err) => {
+    if (err) {
+        console.error("Session save error:", err);
 
-            success: true,
-
-            message: "Login successful",
-
-            user: {
-
-                id: user._id,
-
-                Id: user.employeeId,
-
-                employeeId:
-                    user.employeeId,
-
-                fullName:
-                    user.fullName,
-
-                personalEmail:
-                    user.personalEmail,
-
-                workEmail:
-                    user.workEmail,
-
-                phoneNumber:
-                    user.phoneNumber,
-
-                role:
-                    user.role,
-            },
+        return res.status(500).json({
+            success: false,
+            message: "Failed to save session",
         });
+    }
+
+    console.log("Session saved to MongoDB");
+
+    return res.status(200).json({
+        success: true,
+        message: "Login successful",
+
+        user: {
+            id: user._id,
+            Id: user.employeeId,
+            employeeId: user.employeeId,
+            fullName: user.fullName,
+            personalEmail: user.personalEmail,
+            workEmail: user.workEmail,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+        },
+    });
+});
 
     } catch (err) {
 
