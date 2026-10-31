@@ -1,19 +1,16 @@
-
 const mongoose = require("mongoose");
 const JobModel = require("../models/Job");
 const UserModel = require("../models/User");
 const NotificationModel = require("../models/Notification");
 const EmailNotification = require("../until/EmailNotification");
 
-
 // =====================================================
 // FIND USER BY ID
 // =====================================================
 
-
 const findUser = async (userId) => {
     try {
-        const cleanId = String(userId || "").trim();
+        const cleanId = String(userId || "").trim().toLowerCase();
 
         if (!cleanId) {
             return null;
@@ -36,27 +33,18 @@ const findUser = async (userId) => {
         });
 
         return user;
-
     } catch (error) {
-        console.error(
-            "Find User Error:",
-            error
-        );
-
+        console.error("Find User Error:", error);
         return null;
     }
 };
-
-
 
 // =====================================================
 // CREATE JOB
 // =====================================================
 
 const createJob = async (req, res) => {
-
     try {
-
         const {
             projectId,
             jobTitle,
@@ -68,7 +56,6 @@ const createJob = async (req, res) => {
             tasks,
             assignedEmployees,
         } = req.body;
-
 
         // =================================================
         // REQUIRED FIELD CHECK
@@ -85,14 +72,11 @@ const createJob = async (req, res) => {
             !Array.isArray(tasks) ||
             tasks.length === 0
         ) {
-
             return res.status(400).json({
                 success: false,
                 message: "Please fill all required fields",
             });
-
         }
-
 
         // =================================================
         // FIND USER
@@ -104,16 +88,12 @@ const createJob = async (req, res) => {
         console.log("Created By:", createdBy);
         console.log("Found User:", user);
 
-
         if (!user) {
-
             return res.status(404).json({
                 success: false,
                 message: `User not found for ID: ${createdBy}`,
             });
-
         }
-
 
         // =================================================
         // GET ROLE
@@ -124,43 +104,34 @@ const createJob = async (req, res) => {
 
         console.log("User Role:", createdByRole);
 
-
         if (
             createdByRole !== "employee" &&
             createdByRole !== "admin"
         ) {
-
             return res.status(403).json({
                 success: false,
                 message: "Invalid user role",
             });
-
         }
-
 
         // =================================================
         // TASK VALIDATION
         // =================================================
 
         for (const task of tasks) {
-
             if (
                 !task.taskName ||
                 task.hours === undefined ||
                 task.hours === null ||
                 Number(task.hours) <= 0
             ) {
-
                 return res.status(400).json({
                     success: false,
                     message:
                         "Each task must have taskName and valid hours",
                 });
-
             }
-
         }
-
 
         // =================================================
         // CALCULATE TOTAL HOURS
@@ -173,13 +144,11 @@ const createJob = async (req, res) => {
             0
         );
 
-
         // =====================================================
         // EMPLOYEE CREATE JOB
         // =====================================================
 
         if (createdByRole === "employee") {
-
 
             // =================================================
             // EMPLOYEE CANNOT ASSIGN JOB
@@ -189,15 +158,12 @@ const createJob = async (req, res) => {
                 Array.isArray(assignedEmployees) &&
                 assignedEmployees.length > 0
             ) {
-
                 return res.status(403).json({
                     success: false,
                     message:
                         "Employee cannot assign jobs to other employees",
                 });
-
             }
-
 
             // =================================================
             // FIND ADMIN
@@ -209,23 +175,18 @@ const createJob = async (req, res) => {
 
             console.log("Admins Found:", admins);
 
-
             if (!admins || admins.length === 0) {
-
                 return res.status(404).json({
                     success: false,
                     message: "No admin found",
                 });
-
             }
-
 
             // =================================================
             // CREATE EMPLOYEE JOB
             // =================================================
 
             const newJob = await JobModel.create({
-
                 projectId: projectId.trim(),
 
                 jobTitle: jobTitle.trim(),
@@ -252,15 +213,12 @@ const createJob = async (req, res) => {
                 approvalStatus: "pending",
 
                 rejectionReason: "",
-
             });
-
 
             console.log(
                 "Employee Job Created:",
                 newJob._id
             );
-
 
             // =================================================
             // SEND NOTIFICATION TO ALL ADMINS
@@ -273,7 +231,6 @@ const createJob = async (req, res) => {
                 }
 
                 await NotificationModel.create({
-
                     recipient: admin.Id,
 
                     sender: user.Id,
@@ -286,34 +243,26 @@ const createJob = async (req, res) => {
                     type: "job-approval",
 
                     isRead: false,
-
                 });
-
             }
-
 
             console.log(
                 "Admin notification created successfully"
             );
-
 
             // =================================================
             // RESPONSE
             // =================================================
 
             return res.status(201).json({
-
                 success: true,
 
                 message:
                     "Job created and sent to admin for approval",
 
                 job: newJob,
-
             });
-
         }
-
 
         // =====================================================
         // ADMIN CREATE JOB
@@ -323,92 +272,58 @@ const createJob = async (req, res) => {
 
             let finalAssignedEmployees = [];
 
-
             // =================================================
             // GET ASSIGNED EMPLOYEES
             // =================================================
 
             if (Array.isArray(assignedEmployees)) {
-
                 finalAssignedEmployees = [
                     ...new Set(
                         assignedEmployees
                             .map((id) =>
-                                String(id).trim()
+                                String(id).trim().toLowerCase()
                             )
                             .filter(Boolean)
                     ),
                 ];
-
             }
 
-
             // =================================================
-            // VALIDATE EMPLOYEE IDS
+            // CHECK EMPLOYEE EXISTS
             // =================================================
 
-            if (
-                finalAssignedEmployees.length > 0
-            ) {
-
-                const invalidEmployee =
-                    finalAssignedEmployees.some(
-                        (employeeId) =>
-                            !employeeId
-                                .toUpperCase()
-                                .startsWith("EMP")
-                    );
-
-
-                if (invalidEmployee) {
-
-                    return res.status(400).json({
-
-                        success: false,
-
-                        message:
-                            "Only employee IDs can be assigned",
-
-                    });
-
-                }
-
-
-                // =================================================
-                // CHECK EMPLOYEE EXISTS
-                // =================================================
+            if (finalAssignedEmployees.length > 0) {
 
                 const employees =
                     await UserModel.find({
-
-                        Id: {
-                            $in:
-                                finalAssignedEmployees,
-                        },
-
+                        $or: [
+                            {
+                                Id: {
+                                    $in:
+                                        finalAssignedEmployees,
+                                },
+                            },
+                            {
+                                employeeId: {
+                                    $in:
+                                        finalAssignedEmployees,
+                                },
+                            },
+                        ],
                         role: "employee",
-
                     });
-
 
                 if (
                     employees.length !==
                     finalAssignedEmployees.length
                 ) {
-
                     return res.status(400).json({
-
                         success: false,
-
                         message:
                             "One or more employee IDs are invalid",
-
                     });
-
                 }
-
             }
-
 
             // =================================================
             // CREATE ADMIN JOB
@@ -416,7 +331,6 @@ const createJob = async (req, res) => {
 
             const newJob =
                 await JobModel.create({
-
                     projectId:
                         projectId.trim(),
 
@@ -455,15 +369,12 @@ const createJob = async (req, res) => {
 
                     rejectionReason:
                         "",
-
                 });
-
 
             console.log(
                 "Admin Job Created:",
                 newJob._id
             );
-
 
             // =================================================
             // NOTIFICATION TO ASSIGNED EMPLOYEES
@@ -475,7 +386,6 @@ const createJob = async (req, res) => {
             ) {
 
                 await NotificationModel.create({
-
                     recipient:
                         employeeId,
 
@@ -493,18 +403,14 @@ const createJob = async (req, res) => {
 
                     isRead:
                         false,
-
                 });
-
             }
-
 
             // =================================================
             // RESPONSE
             // =================================================
 
             return res.status(201).json({
-
                 success: true,
 
                 message:
@@ -512,11 +418,8 @@ const createJob = async (req, res) => {
 
                 job:
                     newJob,
-
             });
-
         }
-
 
     } catch (error) {
 
@@ -525,27 +428,19 @@ const createJob = async (req, res) => {
             error
         );
 
-
         // =================================================
         // DUPLICATE PROJECT ID
         // =================================================
 
         if (error.code === 11000) {
-
             return res.status(400).json({
-
                 success: false,
-
                 message:
                     "Project ID already exists",
-
             });
-
         }
 
-
         return res.status(500).json({
-
             success: false,
 
             message:
@@ -553,24 +448,17 @@ const createJob = async (req, res) => {
 
             error:
                 error.message,
-
         });
-
     }
-
 };
-
 
 // =====================================================
 // GET EMPLOYEE JOBS
 // =====================================================
 
 const getEmployeeJobs = async (req, res) => {
-
     try {
-
         const { employeeId } = req.params;
-
 
         // =================================================
         // FIND EMPLOYEE
@@ -579,36 +467,42 @@ const getEmployeeJobs = async (req, res) => {
         const employee =
             await findUser(employeeId);
 
-
         if (!employee) {
-
             return res.status(404).json({
-
                 success: false,
-
                 message:
                     `Employee not found for ID: ${employeeId}`,
-
             });
-
         }
-
 
         // =================================================
         // FIND JOBS
         // =================================================
 
+        const employeeIdValue =
+            String(
+                employee.employeeId ||
+                employee.Id ||
+                employeeId
+            ).toLowerCase();
+
         const jobs =
             await JobModel.find({
-
                 $or: [
+                    {
+                        assignedEmployees:
+                            employeeIdValue,
+
+                        approvalStatus:
+                            "accepted",
+                    },
 
                     {
                         assignedEmployees:
-                            employee.Id,
+                            employeeId,
 
                         approvalStatus:
-                            "approved",
+                            "accepted",
                     },
 
                     {
@@ -624,21 +518,27 @@ const getEmployeeJobs = async (req, res) => {
                         },
                     },
 
-                ],
+                    {
+                        createdBy:
+                            employee.employeeId,
 
+                        approvalStatus: {
+                            $in: [
+                                "pending",
+                                "approved",
+                                "rejected",
+                            ],
+                        },
+                    },
+                ],
             }).sort({
                 createdAt: -1,
             });
 
-
         return res.status(200).json({
-
             success: true,
-
             jobs,
-
         });
-
 
     } catch (error) {
 
@@ -647,9 +547,7 @@ const getEmployeeJobs = async (req, res) => {
             error
         );
 
-
         return res.status(500).json({
-
             success: false,
 
             message:
@@ -657,13 +555,9 @@ const getEmployeeJobs = async (req, res) => {
 
             error:
                 error.message,
-
         });
-
     }
-
 };
-
 
 // =====================================================
 // GET ALL JOBS
@@ -671,29 +565,34 @@ const getEmployeeJobs = async (req, res) => {
 
 const getAllJobs = async (req, res) => {
 
+    console.log(
+        "get all jobs req.user:",
+        req.user
+    );
+
     try {
 
-        const user = req.session.user
+        const user = req.user;
 
-        let josbs;
+        let jobs;
+
         if (user.role === "admin") {
-            josbs = await JobModel.find({})
+
+            jobs =
+                await JobModel.find({});
+
+        } else {
+
+            jobs =
+                await JobModel.find({
+                    createdBy: user.id,
+                });
         }
-        else {
-            josbs = await JobModel.find({ createdBy: user.id })
-        }
-
-
-
 
         return res.status(200).json({
-
             success: true,
-
             jobs,
-
         });
-
 
     } catch (error) {
 
@@ -702,9 +601,7 @@ const getAllJobs = async (req, res) => {
             error
         );
 
-
         return res.status(500).json({
-
             success: false,
 
             message:
@@ -712,13 +609,9 @@ const getAllJobs = async (req, res) => {
 
             error:
                 error.message,
-
         });
-
     }
-
 };
-
 
 // =====================================================
 // GET PENDING JOBS
@@ -730,7 +623,6 @@ const getPendingJobs = async (req, res) => {
 
         const jobs =
             await JobModel.find({
-
                 createdByRole:
                     "employee",
 
@@ -741,15 +633,10 @@ const getPendingJobs = async (req, res) => {
                 createdAt: -1,
             });
 
-
         return res.status(200).json({
-
             success: true,
-
             jobs,
-
         });
-
 
     } catch (error) {
 
@@ -758,9 +645,7 @@ const getPendingJobs = async (req, res) => {
             error
         );
 
-
         return res.status(500).json({
-
             success: false,
 
             message:
@@ -768,13 +653,9 @@ const getPendingJobs = async (req, res) => {
 
             error:
                 error.message,
-
         });
-
     }
-
 };
-
 
 // =====================================================
 // APPROVE JOB
@@ -786,11 +667,9 @@ const approveJob = async (req, res) => {
 
         const { jobId } = req.params;
 
-
         console.log("================================");
         console.log("APPROVE JOB START");
         console.log("Job ID:", jobId);
-
 
         // =================================================
         // FIND JOB
@@ -799,26 +678,18 @@ const approveJob = async (req, res) => {
         const job =
             await JobModel.findById(jobId);
 
-
         if (!job) {
-
             return res.status(404).json({
-
                 success: false,
-
                 message:
                     "Job not found",
-
             });
-
         }
-
 
         console.log(
             "Approval Status:",
             job.approvalStatus
         );
-
 
         // =================================================
         // CHECK PENDING
@@ -830,7 +701,6 @@ const approveJob = async (req, res) => {
         ) {
 
             return res.status(400).json({
-
                 success: false,
 
                 message:
@@ -838,11 +708,8 @@ const approveJob = async (req, res) => {
 
                 currentStatus:
                     job.approvalStatus,
-
             });
-
         }
-
 
         // =================================================
         // FIND EMPLOYEE
@@ -853,26 +720,19 @@ const approveJob = async (req, res) => {
                 job.createdBy
             );
 
-
         console.log(
             "Employee:",
             employee
         );
 
-
         if (!employee) {
-
             return res.status(404).json({
-
                 success: false,
 
                 message:
                     `Employee not found for ID: ${job.createdBy}`,
-
             });
-
         }
-
 
         // =================================================
         // UPDATE JOB
@@ -886,13 +746,11 @@ const approveJob = async (req, res) => {
 
         await job.save();
 
-
         // =================================================
         // CREATE EMPLOYEE NOTIFICATION
         // =================================================
 
         await NotificationModel.create({
-
             recipient:
                 employee.Id,
 
@@ -910,9 +768,7 @@ const approveJob = async (req, res) => {
 
             isRead:
                 false,
-
         });
-
 
         // =================================================
         // SEND ACCEPT EMAIL
@@ -920,14 +776,12 @@ const approveJob = async (req, res) => {
 
         let emailSent = false;
 
-
         if (
             employee.workEmail
         ) {
 
             emailSent =
                 await EmailNotification({
-
                     receiverEmail:
                         employee.workEmail,
 
@@ -990,8 +844,8 @@ const approveJob = async (req, res) => {
                                     Start Date:
                                 </strong>
                                 ${new Date(
-                        job.startDate
-                    ).toLocaleDateString()}
+                                    job.startDate
+                                ).toLocaleDateString()}
                             </p>
 
                             <p>
@@ -999,8 +853,8 @@ const approveJob = async (req, res) => {
                                     Due Date:
                                 </strong>
                                 ${new Date(
-                        job.dueDate
-                    ).toLocaleDateString()}
+                                    job.dueDate
+                                ).toLocaleDateString()}
                             </p>
 
                             <p>
@@ -1024,23 +878,19 @@ const approveJob = async (req, res) => {
                         </p>
 
                     `,
-
                 });
-
         }
-
 
         console.log(
             "Accept Email Sent:",
             emailSent
         );
 
-
-        console.log("================================");
-
+        console.log(
+            "================================"
+        );
 
         return res.status(200).json({
-
             success: true,
 
             message:
@@ -1049,9 +899,7 @@ const approveJob = async (req, res) => {
                     : "Job accepted, but email could not be sent",
 
             job,
-
         });
-
 
     } catch (error) {
 
@@ -1060,9 +908,7 @@ const approveJob = async (req, res) => {
             error
         );
 
-
         return res.status(500).json({
-
             success: false,
 
             message:
@@ -1070,19 +916,16 @@ const approveJob = async (req, res) => {
 
             error:
                 error.message,
-
         });
-
     }
-
 };
-
 
 // =====================================================
 // REJECT JOB
 // =====================================================
 
 const rejectJob = async (req, res) => {
+
     try {
 
         console.log("================================");
@@ -1090,12 +933,14 @@ const rejectJob = async (req, res) => {
 
         const { jobId } = req.params;
 
-        // req.body undefined இருந்தாலும் crash ஆகக்கூடாது
-        const { reason = "" } = req.body || {};
+        const { reason = "" } =
+            req.body || {};
 
         console.log("Job ID:", jobId);
-        console.log("Reject Reason:", reason);
-
+        console.log(
+            "Reject Reason:",
+            reason
+        );
 
         // =========================================
         // CHECK REASON
@@ -1105,64 +950,72 @@ const rejectJob = async (req, res) => {
 
             return res.status(400).json({
                 success: false,
-                message: "Rejection reason is required"
+                message:
+                    "Rejection reason is required",
             });
-
         }
-
 
         // =========================================
         // FIND JOB
         // =========================================
 
-        const job = await JobModel.findById(jobId);
+        const job =
+            await JobModel.findById(jobId);
 
         if (!job) {
 
             return res.status(404).json({
                 success: false,
-                message: "Job not found"
+                message:
+                    "Job not found",
             });
-
         }
-
 
         // =========================================
         // CHECK PENDING
         // =========================================
 
-        if (job.approvalStatus !== "pending") {
+        if (
+            job.approvalStatus !==
+            "pending"
+        ) {
 
             return res.status(400).json({
                 success: false,
-                message: "Job is already processed",
-                currentStatus: job.approvalStatus
+
+                message:
+                    "Job is already processed",
+
+                currentStatus:
+                    job.approvalStatus,
             });
-
         }
-
 
         // =========================================
         // UPDATE JOB
         // =========================================
 
-        job.approvalStatus = "rejected";
+        job.approvalStatus =
+            "rejected";
 
-        job.rejectionReason = reason.trim();
+        job.rejectionReason =
+            reason.trim();
 
         await job.save();
-
 
         // =========================================
         // FIND EMPLOYEE
         // =========================================
 
-        const employee = await UserModel.findOne({
-            Id: job.createdBy
-        });
+        const employee =
+            await UserModel.findOne({
+                Id: job.createdBy,
+            });
 
-        console.log("Employee:", employee);
-
+        console.log(
+            "Employee:",
+            employee
+        );
 
         // =========================================
         // EMPLOYEE NOT FOUND
@@ -1172,33 +1025,35 @@ const rejectJob = async (req, res) => {
 
             return res.status(404).json({
                 success: false,
-                message: `Employee not found for ID: ${job.createdBy}`
+
+                message:
+                    `Employee not found for ID: ${job.createdBy}`,
             });
-
         }
-
 
         // =========================================
         // CREATE NOTIFICATION
         // =========================================
 
         await NotificationModel.create({
+            recipient:
+                employee.Id,
 
-            recipient: employee.Id,
+            sender:
+                "ADMIN",
 
-            sender: "ADMIN",
-
-            jobId: job._id,
+            jobId:
+                job._id,
 
             message:
                 `Your job "${job.jobTitle}" has been rejected. Reason: ${reason.trim()}`,
 
-            type: "job-rejected",
+            type:
+                "job-rejected",
 
-            isRead: false
-
+            isRead:
+                false,
         });
-
 
         // =========================================
         // SEND REJECT EMAIL
@@ -1208,99 +1063,117 @@ const rejectJob = async (req, res) => {
 
         if (employee.workEmail) {
 
-            emailSent = await EmailNotification({
+            emailSent =
+                await EmailNotification({
 
-                receiverEmail: employee.workEmail,
+                    receiverEmail:
+                        employee.workEmail,
 
-                subject:
-                    "Job Rejected - TechNova Private Limited",
+                    subject:
+                        "Job Rejected - TechNova Private Limited",
 
-                dynamicHtml: `
+                    dynamicHtml: `
 
-                    <h2 style="
-                        color: #dc2626;
-                        text-align: center;
-                    ">
-                        Job Rejected
-                    </h2>
-
-                    <p>
-                        Hello
-                        <strong>
-                            ${employee.fullName}
-                        </strong>,
-                    </p>
-
-                    <p>
-                        Your job has been
-                        <strong>rejected</strong>
-                        by Admin.
-                    </p>
-
-                    <div style="
-                        background-color: #fef2f2;
-                        padding: 20px;
-                        border-radius: 8px;
-                        margin-top: 20px;
-                    ">
-
-                        <p>
-                            <strong>Project ID:</strong>
-                            ${job.projectId}
-                        </p>
-
-                        <p>
-                            <strong>Job Title:</strong>
-                            ${job.jobTitle}
-                        </p>
-
-                        <p>
-                            <strong>Job Type:</strong>
-                            ${job.jobType}
-                        </p>
-
-                        <p>
-                            <strong>Start Date:</strong>
-                            ${job.startDate}
-                        </p>
-
-                        <p>
-                            <strong>Due Date:</strong>
-                            ${job.dueDate}
-                        </p>
-
-                        <p>
-                            <strong>Total Hours:</strong>
-                            ${job.totalHours}
-                        </p>
-
-                        <p>
-                            <strong>Rejection Reason:</strong>
-                        </p>
-
-                        <p style="
-                            background-color: white;
-                            padding: 12px;
-                            border-radius: 5px;
+                        <h2 style="
+                            color: #dc2626;
+                            text-align: center;
                         ">
-                            ${reason.trim()}
+                            Job Rejected
+                        </h2>
+
+                        <p>
+                            Hello
+                            <strong>
+                                ${employee.fullName}
+                            </strong>,
                         </p>
 
-                    </div>
+                        <p>
+                            Your job has been
+                            <strong>
+                                rejected
+                            </strong>
+                            by Admin.
+                        </p>
 
-                    <p>
-                        Please review the reason and make the necessary changes.
-                    </p>
+                        <div style="
+                            background-color: #fef2f2;
+                            padding: 20px;
+                            border-radius: 8px;
+                            margin-top: 20px;
+                        ">
 
-                    <p>
-                        Regards,<br>
-                        <strong>
-                            TechNova Private Limited
-                        </strong>
-                    </p>
+                            <p>
+                                <strong>
+                                    Project ID:
+                                </strong>
+                                ${job.projectId}
+                            </p>
 
-                `
-            });
+                            <p>
+                                <strong>
+                                    Job Title:
+                                </strong>
+                                ${job.jobTitle}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Job Type:
+                                </strong>
+                                ${job.jobType}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Start Date:
+                                </strong>
+                                ${job.startDate}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Due Date:
+                                </strong>
+                                ${job.dueDate}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Total Hours:
+                                </strong>
+                                ${job.totalHours}
+                            </p>
+
+                            <p>
+                                <strong>
+                                    Rejection Reason:
+                                </strong>
+                            </p>
+
+                            <p style="
+                                background-color: white;
+                                padding: 12px;
+                                border-radius: 5px;
+                            ">
+                                ${reason.trim()}
+                            </p>
+
+                        </div>
+
+                        <p>
+                            Please review the reason and make the necessary changes.
+                        </p>
+
+                        <p>
+                            Regards,<br>
+                            <strong>
+                                TechNova Private Limited
+                            </strong>
+                        </p>
+
+                    `,
+                });
 
             console.log(
                 "Reject Email Sent:",
@@ -1308,23 +1181,20 @@ const rejectJob = async (req, res) => {
             );
         }
 
-
         // =========================================
         // RESPONSE
         // =========================================
 
         return res.status(200).json({
-
             success: true,
 
-            message: emailSent
-                ? "Job rejected and email sent successfully"
-                : "Job rejected, but email could not be sent",
+            message:
+                emailSent
+                    ? "Job rejected and email sent successfully"
+                    : "Job rejected, but email could not be sent",
 
-            job
-
+            job,
         });
-
 
     } catch (error) {
 
@@ -1334,15 +1204,14 @@ const rejectJob = async (req, res) => {
         );
 
         return res.status(500).json({
-
             success: false,
 
-            message: "Server error",
+            message:
+                "Server error",
 
-            error: error.message
-
+            error:
+                error.message,
         });
-
     }
 };
 
@@ -1351,7 +1220,9 @@ const rejectJob = async (req, res) => {
 // =====================================================
 
 const deleteJob = async (req, res) => {
+
     try {
+
         const { jobId } = req.params;
 
         console.log("================================");
@@ -1359,17 +1230,22 @@ const deleteJob = async (req, res) => {
         console.log("Job ID:", jobId);
 
         // Find job
-        const job = await JobModel.findById(jobId);
+        const job =
+            await JobModel.findById(jobId);
 
         if (!job) {
+
             return res.status(404).json({
                 success: false,
-                message: "Job not found",
+                message:
+                    "Job not found",
             });
         }
 
         // Delete job
-        await JobModel.findByIdAndDelete(jobId);
+        await JobModel.findByIdAndDelete(
+            jobId
+        );
 
         console.log(
             "Job deleted successfully:",
@@ -1378,11 +1254,15 @@ const deleteJob = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: "Job deleted successfully",
+
+            message:
+                "Job deleted successfully",
+
             jobId,
         });
 
     } catch (error) {
+
         console.error(
             "Delete Job Error:",
             error
@@ -1390,11 +1270,19 @@ const deleteJob = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: "Server error",
-            error: error.message,
+
+            message:
+                "Server error",
+
+            error:
+                error.message,
         });
     }
 };
+
+// =====================================================
+// EXPORTS
+// =====================================================
 
 module.exports = {
     createJob,
@@ -1403,5 +1291,5 @@ module.exports = {
     getPendingJobs,
     approveJob,
     rejectJob,
-    deleteJob
+    deleteJob,
 };

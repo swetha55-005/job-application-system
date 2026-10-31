@@ -1,7 +1,7 @@
 const Otp = require("../models/Otp");
 const Usermodel = require("../models/User");
 const EmailNotification = require("../until/EmailNotification");
-
+const jwt = require("jsonwebtoken");
 
 // =====================================================
 // SEND OTP
@@ -634,6 +634,16 @@ const login = async (req, res) => {
             });
         }
 
+        const token = jwt.sign({
+            id:user._id.toString(),
+            employeeId: user.employeeId,
+            role:user.role,
+        },
+        process.env.JWT_SECRET,
+    );
+
+    console.log("JWT token", token);
+
         // =====================================================
         // LOGIN SUCCESS
         // =====================================================
@@ -667,6 +677,8 @@ req.session.save((err) => {
     return res.status(200).json({
         success: true,
         message: "Login successful",
+
+        token: token,
 
         user: {
             id: user._id,

@@ -1,4 +1,5 @@
 const express = require("express");
+const { Auth } = require("../Middleware/Auth");
 
 const {
     getAllEmployees,
@@ -6,6 +7,6 @@ const {
 
 const router = express.Router();
 
-router.get("/employees", getAllEmployees);
+router.get("/employees", Auth,getAllEmployees);
 
 module.exports = router;
