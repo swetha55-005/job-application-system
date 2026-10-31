@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const { createOrder, verifyPayment } = require("../controller/paymentController");
-const { Auth } = require("../middleware/Auth");
+const { Auth } = require("../Middleware/Auth");
 
 console.log("Auth type:", typeof Auth);
 console.log("createOrder type:", typeof createOrder);
